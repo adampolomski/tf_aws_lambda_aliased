@@ -19,6 +19,11 @@ variable "function_name" {
   type = "string"
 }
 
+variable "description" {
+  type = "string"
+  default = ""
+}
+
 variable "runtime" {
   type = "string"
   default = "java8"
@@ -102,7 +107,7 @@ resource "aws_lambda_function" "lambda" {
   runtime       = "${var.runtime}"
   memory_size   = "${var.memory_size}"
   timeout       = "${var.timeout}"
-
+  description   = "${var.description}"
   environment {
     variables = "${var.environment}"
   }
