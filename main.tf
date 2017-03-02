@@ -19,6 +19,21 @@ variable "function_name" {
   type = "string"
 }
 
+variable "runtime" {
+  type = "string"
+  default = "java8"
+}
+
+variable "memory_size" {
+  type = "string"
+  default = 256
+}
+
+variable "timeout" {
+  type = "string"
+  default = 20
+}
+
 variable "policy" {
   type = "string"
 }
@@ -84,9 +99,9 @@ resource "aws_lambda_function" "lambda" {
   function_name = "${var.function_name}"
   role          = "${aws_iam_role.lambda_iam_role.arn}"
   handler       = "${var.handler}"
-  runtime       = "java8"
-  memory_size   = 256
-  timeout       = 20
+  runtime       = "${var.runtime}"
+  memory_size   = "${var.memory_size}"
+  timeout       = "${var.timeout}"
 
   environment {
     variables = "${var.environment}"
