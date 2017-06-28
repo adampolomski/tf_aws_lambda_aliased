@@ -78,7 +78,7 @@ EOF
 
 resource "aws_iam_role_policy" "logs_policy" {
   name = "logs_policy"
-  role = "${aws_iam_role.lambda_iam_role.id}"
+  role = "${aws_iam_role.lambda_iam_role.0.id}"
 
   policy = <<EOF
 {
@@ -104,7 +104,7 @@ EOF
 
 resource "aws_iam_role_policy" "custom_policy" {
   name = "custom_policy"
-  role = "${aws_iam_role.lambda_iam_role.id}"
+  role = "${aws_iam_role.lambda_iam_role.0.id}"
   policy = "${var.policy}"
 }
 
@@ -112,7 +112,7 @@ resource "aws_lambda_function" "lambda" {
   s3_bucket     = "${var.s3_bucket}"
   s3_key        = "${var.s3_key}"
   function_name = "${var.function_name}"
-  role          = "${aws_iam_role.lambda_iam_role.arn}"
+  role          = "${aws_iam_role.lambda_iam_role.0.arn}"
   handler       = "${var.handler}"
   runtime       = "${var.runtime}"
   memory_size   = "${var.memory_size}"
