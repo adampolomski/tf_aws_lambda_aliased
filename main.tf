@@ -126,7 +126,7 @@ resource "aws_lambda_function" "lambda" {
 
 resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
-  function_name    = "${aws_lambda_function.lambda.arn}"
+  function_name    = "${var.function_name}"
   function_version = "${lookup(data.external.alias.result, var.alias)}"
 }
 
