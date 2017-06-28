@@ -6,7 +6,7 @@ variable "s3_key" {
   type = "string"
 }
 
-variable "environment" {
+variable "function_variables" {
   type = "map"
   default = {}
 }
@@ -43,8 +43,16 @@ variable "policy" {
   type = "string"
 }
 
-data "external" "aliases" {
-  program = ["${path.module}/aliases.sh", "${aws_lambda_function.lambda.function_name}"]
+variable "alias" {
+  type = "string"
+}
+
+variable "manage_lambda" {
+  default = true
+}
+
+data "external" "alias" {
+  program = ["${path.module}/aliases.sh", "${aws_lambda_function.lambda.function_name}", "${var.alias}"]
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
@@ -65,6 +73,7 @@ resource "aws_iam_role" "lambda_iam_role" {
   ]
 }
 EOF
+  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_iam_role_policy" "logs_policy" {
@@ -90,6 +99,7 @@ resource "aws_iam_role_policy" "logs_policy" {
   ]
 }
 EOF
+  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_iam_role_policy" "custom_policy" {
@@ -109,27 +119,17 @@ resource "aws_lambda_function" "lambda" {
   timeout       = "${var.timeout}"
   description   = "${var.description}"
   environment {
-    variables = "${var.environment}"
+    variables = "${var.function_variables}"
   }
+  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_lambda_alias" "lambda_alias" {
-  name             = "${element(keys(data.external.aliases.result), count.index)}"
+  name             = "${var.alias}"
   function_name    = "${aws_lambda_function.lambda.arn}"
-  function_version = "${lookup(data.external.aliases.result, element(keys(data.external.aliases.result), count.index))}"
-
-  #count = "${length(keys(data.external.aliases.result))}" This won't work yet. Hardcoding count to 2.
-  count = 2
+  function_version = "${lookup(data.external.alias.result, ${var.alias})}"
 }
 
-output "lambda_arn" {
-  value = "${aws_lambda_function.lambda.arn}"
-}
-
-output "alias_production_arn" {
-  value = "${aws_lambda_alias.lambda_alias.0.arn}"
-}
-
-output "alias_test_arn" {
-  value = "${aws_lambda_alias.lambda_alias.1.arn}"
+output "alias_arn" {
+  value = "${aws_lambda_alias.lambda_alias.arn}"
 }
