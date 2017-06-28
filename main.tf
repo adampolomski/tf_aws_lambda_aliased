@@ -73,12 +73,11 @@ resource "aws_iam_role" "lambda_iam_role" {
   ]
 }
 EOF
-  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_iam_role_policy" "logs_policy" {
   name = "logs_policy"
-  role = "${aws_iam_role.lambda_iam_role.0.id}"
+  role = "${aws_iam_role.lambda_iam_role.id}"
 
   policy = <<EOF
 {
@@ -99,12 +98,11 @@ resource "aws_iam_role_policy" "logs_policy" {
   ]
 }
 EOF
-  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_iam_role_policy" "custom_policy" {
   name = "custom_policy"
-  role = "${aws_iam_role.lambda_iam_role.0.id}"
+  role = "${aws_iam_role.lambda_iam_role.id}"
   policy = "${var.policy}"
 }
 
@@ -112,7 +110,7 @@ resource "aws_lambda_function" "lambda" {
   s3_bucket     = "${var.s3_bucket}"
   s3_key        = "${var.s3_key}"
   function_name = "${var.function_name}"
-  role          = "${aws_iam_role.lambda_iam_role.0.arn}"
+  role          = "${aws_iam_role.lambda_iam_role.arn}"
   handler       = "${var.handler}"
   runtime       = "${var.runtime}"
   memory_size   = "${var.memory_size}"
@@ -128,6 +126,7 @@ resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
   function_name    = "${var.function_name}"
   function_version = "${lookup(data.external.alias.result, element(keys(data.external.alias.result), 0))}"
+  depends_on = ["aws_lambda_function.lambda"]
 }
 
 output "alias_arn" {
