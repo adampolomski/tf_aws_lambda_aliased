@@ -52,7 +52,7 @@ variable "manage_lambda" {
 }
 
 data "external" "alias" {
-  program = ["${path.module}/aliases.sh", "${aws_lambda_function.lambda.function_name}", "${var.alias}"]
+  program = ["${path.module}/aliases.sh", "${var.function_name}", "${var.alias}"]
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
