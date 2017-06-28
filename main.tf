@@ -47,12 +47,8 @@ variable "alias" {
   type = "string"
 }
 
-variable "manage_lambda" {
-  default = true
-}
-
 data "external" "alias" {
-  program = ["${path.module}/aliases.sh", "${var.function_name}", "${var.alias}"]
+  program = ["${path.module}/aliases.sh", "${aws_lambda_function.lambda.function_name}", "${var.alias}"]
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
@@ -119,14 +115,16 @@ resource "aws_lambda_function" "lambda" {
   environment {
     variables = "${var.function_variables}"
   }
-  count = "${var.manage_lambda == true ? 1 : 0}"
 }
 
 resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
-  function_name    = "${var.function_name}"
+  function_name    = "${aws_lambda_function.lambda.arn}"
   function_version = "${lookup(data.external.alias.result, element(keys(data.external.alias.result), 0))}"
-  depends_on = ["aws_lambda_function.lambda"]
+}
+
+output "lambda_arn" {
+  value = "${aws_lambda_function.lambda.arn}"
 }
 
 output "alias_arn" {
