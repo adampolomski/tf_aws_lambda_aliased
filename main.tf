@@ -47,6 +47,14 @@ variable "policy" {
   type = "string"
 }
 
+variable "vpc_config" {
+  type = "map"
+  default = {
+    security_group_ids = []
+    subnet_ids = []
+  }
+}
+
 variable "aliases" {
   type = "map"
   default = {
@@ -124,10 +132,16 @@ resource "aws_lambda_function" "lambda" {
   timeout       = "${var.timeout}"
   description   = "${var.description}"
   publish = false
+  source_code_hash = "${base64sha256(file(var.build_path))}"
+
+  vpc_config {
+    security_group_ids = "${var.vpc_config.security_group_ids}"
+    subnet_ids = "${var.vpc_config.subnet_ids}"
+  }
+
   environment {
     variables = "${var.function_variables}"
   }
-  source_code_hash = "${base64sha256(file(var.build_path))}"
 }
 
 data "external" "alias" {
