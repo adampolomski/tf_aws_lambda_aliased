@@ -156,7 +156,7 @@ data "external" "alias" {
 resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
   function_name    = "${aws_lambda_function.lambda.arn}"
-  function_version = "${lookup(data.external.alias.result, ${var.alias}, aws_lambda_function.lambda.version)}"
+  function_version = "${lookup(data.external.alias.result, var.alias, aws_lambda_function.lambda.version)}"
 }
 
 resource "null_resource" "publisher" {
