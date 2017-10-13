@@ -2,8 +2,14 @@ variable "s3_bucket" {
   type = "string"
 }
 
+variable "s3_key" {
+  type = "string"
+  default = ""
+}
+
 variable "s3_builds_prefix" {
   type = "string"
+  default = ""
 }
 
 variable "build_path" {
@@ -45,6 +51,7 @@ variable "timeout" {
 
 variable "policy" {
   type = "string"
+  default = ""
 }
 
 variable "vpc_config" {
@@ -55,16 +62,13 @@ variable "vpc_config" {
   }
 }
 
-variable "aliases" {
-  type = "map"
-  default = {
-    prod = "PRODUCTION"
-    test = "TEST"
-  }
+variable "alias" {
+  type = "string"
+  default = "RELEASE"
 }
 
 resource "aws_iam_role" "lambda_iam_role" {
-  name = "${var.function_name}_${terraform.env}_iam_role"
+  name = "${var.function_name}"
 
   assume_role_policy = <<EOF
 {
@@ -119,11 +123,12 @@ resource "aws_s3_bucket_object" "object" {
   key    = "${var.s3_builds_prefix}${basename(var.build_path)}"
   source = "${var.build_path}"
   etag   = "${md5(file(var.build_path))}"
+  count = "${length(var.s3_key) > 0}"
 }
 
 resource "aws_lambda_function" "lambda" {
-  s3_bucket     = "${aws_s3_bucket_object.object.bucket}"
-  s3_key        = "${aws_s3_bucket_object.object.key}"
+  s3_bucket     = "${var.s3_bucket}"
+  s3_key        = "${length(var.s3_key) > 0 ? var.s3_key : aws_s3_bucket_object.object.key}"
   function_name = "${var.function_name}"
   role          = "${aws_iam_role.lambda_iam_role.arn}"
   handler       = "${var.handler}"
@@ -149,9 +154,9 @@ data "external" "alias" {
 }
 
 resource "aws_lambda_alias" "lambda_alias" {
-  name             = "${lookup(var.aliases, terraform.env, upper(terraform.env))}"
+  name             = "${var.alias}"
   function_name    = "${aws_lambda_function.lambda.arn}"
-  function_version = "${lookup(data.external.alias.result, lookup(var.aliases, terraform.env, upper(terraform.env)), aws_lambda_function.lambda.version)}"
+  function_version = "${lookup(data.external.alias.result, ${var.alias}, aws_lambda_function.lambda.version)}"
 }
 
 resource "null_resource" "publisher" {
@@ -176,4 +181,8 @@ output "lambda_name" {
 
 output "alias_arn" {
   value = "${aws_lambda_alias.lambda_alias.arn}"
+}
+
+output "bucket_key" {
+  value = "${length(var.s3_key) > 0 ? var.s3_key : aws_s3_bucket_object.object.key}"
 }
