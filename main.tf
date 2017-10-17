@@ -116,6 +116,7 @@ resource "aws_iam_role_policy" "custom_policy" {
   name = "custom_policy"
   role = "${aws_iam_role.lambda_iam_role.id}"
   policy = "${var.policy}"
+  count  = "${length(var.policy) > 0 ? 1 : 0}"
 }
 
 resource "aws_s3_bucket_object" "object" {
@@ -123,12 +124,18 @@ resource "aws_s3_bucket_object" "object" {
   key    = "${var.s3_builds_prefix}${basename(var.build_path)}"
   source = "${var.build_path}"
   etag   = "${md5(file(var.build_path))}"
-  count = "${length(var.s3_key) > 0}"
+  count  = "${length(var.s3_key) > 0 ? 0 : 1}"
+}
+
+data "aws_s3_bucket_object" "loaded" {
+  bucket = "${var.s3_bucket}"
+  key = "${var.s3_key}"
+  count  = "${length(var.s3_key) > 0 ? 1 : 0}"
 }
 
 resource "aws_lambda_function" "lambda" {
   s3_bucket     = "${var.s3_bucket}"
-  s3_key        = "${length(var.s3_key) > 0 ? var.s3_key : aws_s3_bucket_object.object.key}"
+  s3_key        = "${element(concat(data.aws_s3_bucket_object.loaded.*.key, aws_s3_bucket_object.object.*.key), 0)}"
   function_name = "${var.function_name}"
   role          = "${aws_iam_role.lambda_iam_role.arn}"
   handler       = "${var.handler}"
@@ -139,10 +146,10 @@ resource "aws_lambda_function" "lambda" {
   publish = false
   source_code_hash = "${base64sha256(file(var.build_path))}"
 
-  vpc_config {
-      security_group_ids = [ "${var.vpc_config["security_group_ids"]}" ]
-      subnet_ids = [ "${var.vpc_config["subnet_ids"]}" ]
-  }
+//  vpc_config {
+//      security_group_ids = [ "${var.vpc_config["security_group_ids"]}" ]
+//      subnet_ids = [ "${var.vpc_config["subnet_ids"]}" ]
+//  }
 
   environment {
     variables = "${var.function_variables}"
@@ -183,6 +190,6 @@ output "alias_arn" {
   value = "${aws_lambda_alias.lambda_alias.arn}"
 }
 
-output "bucket_key" {
-  value = "${length(var.s3_key) > 0 ? var.s3_key : aws_s3_bucket_object.object.key}"
+output "s3_key" {
+  value = "${element(concat(data.aws_s3_bucket_object.loaded.*.key, aws_s3_bucket_object.object.*.key), 0)}"
 }
