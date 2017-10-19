@@ -12,13 +12,14 @@ variable "s3_builds_prefix" {
   default = ""
 }
 
-variable "build_path" {
+variable "source_code_hash" {
   type = "string"
+  default = ""
 }
 
 variable "function_variables" {
   type = "map"
-  default = {foo = "bar"}
+  default = {}
 }
 
 variable "handler" {
@@ -54,13 +55,13 @@ variable "policy" {
   default = ""
 }
 
-variable "vpc_config" {
-  type = "map"
-  default = {
-    security_group_ids = []
-    subnet_ids = []
-  }
-}
+//variable "vpc_config" {
+//  type = "map"
+//  default = {
+//    security_group_ids = []
+//    subnet_ids = []
+//  }
+//}
 
 variable "alias" {
   type = "string"
@@ -119,23 +120,9 @@ resource "aws_iam_role_policy" "custom_policy" {
   count  = "${length(var.policy) > 0 ? 1 : 0}"
 }
 
-resource "aws_s3_bucket_object" "object" {
-  bucket = "${var.s3_bucket}"
-  key    = "${var.s3_builds_prefix}${basename(var.build_path)}"
-  source = "${var.build_path}"
-  etag   = "${md5(file(var.build_path))}"
-  count  = "${length(var.s3_key) > 0 ? 0 : 1}"
-}
-
-data "aws_s3_bucket_object" "loaded" {
-  bucket = "${var.s3_bucket}"
-  key = "${var.s3_key}"
-  count  = "${length(var.s3_key) > 0 ? 1 : 0}"
-}
-
 resource "aws_lambda_function" "lambda" {
   s3_bucket     = "${var.s3_bucket}"
-  s3_key        = "${element(concat(data.aws_s3_bucket_object.loaded.*.key, aws_s3_bucket_object.object.*.key), 0)}"
+  s3_key        = "${var.s3_key}"
   function_name = "${var.function_name}"
   role          = "${aws_iam_role.lambda_iam_role.arn}"
   handler       = "${var.handler}"
@@ -143,8 +130,8 @@ resource "aws_lambda_function" "lambda" {
   memory_size   = "${var.memory_size}"
   timeout       = "${var.timeout}"
   description   = "${var.description}"
+  source_code_hash = "${var.source_code_hash}"
   publish = false
-  source_code_hash = "${base64sha256(file(var.build_path))}"
 
 //  vpc_config {
 //      security_group_ids = [ "${var.vpc_config["security_group_ids"]}" ]
@@ -170,11 +157,11 @@ resource "null_resource" "publisher" {
   triggers {
     timeout = "${aws_lambda_function.lambda.timeout}"
     memory_size = "${aws_lambda_function.lambda.memory_size}"
-    code_hash = "${aws_lambda_function.lambda.source_code_hash}"
+    source_code_hash = "${aws_lambda_function.lambda.source_code_hash}"
   }
 
   provisioner "local-exec" {
-    command = "${path.module}/publish.sh ${aws_lambda_function.lambda.function_name} ${aws_lambda_alias.lambda_alias.name}"
+    command = "${path.module}/publish.sh ${aws_lambda_function.lambda.function_name} ${aws_lambda_alias.lambda_alias.name} ; ${path.module}/cleanup.sh ${aws_lambda_function.lambda.function_name}"
   }
 }
 
@@ -188,8 +175,4 @@ output "lambda_name" {
 
 output "alias_arn" {
   value = "${aws_lambda_alias.lambda_alias.arn}"
-}
-
-output "s3_key" {
-  value = "${element(concat(data.aws_s3_bucket_object.loaded.*.key, aws_s3_bucket_object.object.*.key), 0)}"
 }
