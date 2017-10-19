@@ -161,7 +161,7 @@ resource "null_resource" "publisher" {
   }
 
   provisioner "local-exec" {
-    command = "${path.module}/publish.sh ${aws_lambda_function.lambda.function_name} ${aws_lambda_alias.lambda_alias.name} ; ${path.module}/cleanup.sh ${aws_lambda_function.lambda.function_name}"
+    command = "${path.module}/cleanup.sh ${aws_lambda_function.lambda.function_name} ; ${path.module}/publish.sh ${aws_lambda_function.lambda.function_name} ${aws_lambda_alias.lambda_alias.name}"
   }
 }
 
