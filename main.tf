@@ -203,11 +203,12 @@ data "external" "alias" {
 resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
   function_name    = "${element(concat(aws_lambda_function.lambda_bare.*.arn, aws_lambda_function.lambda_vpc.*.arn, aws_lambda_function.lambda_vpc_dead_letter.*.arn), 0)}"
-  function_version = "${lookup(data.external.alias.result, var.alias, element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name, aws_lambda_function.lambda_vpc_dead_letter.*.function_name), 0))}"
+  function_version = "${lookup(data.external.alias.result, var.alias, element(concat(aws_lambda_function.lambda_bare.*.version, aws_lambda_function.lambda_vpc.*.version, aws_lambda_function.lambda_vpc_dead_letter.*.version), 0))}"
 }
 
 resource "null_resource" "publisher" {
   triggers {
+    alias_id = "${aws_lambda_alias.lambda_alias.id}"
     timeout = "${element(concat(aws_lambda_function.lambda_bare.*.timeout, aws_lambda_function.lambda_vpc.*.timeout, aws_lambda_function.lambda_vpc_dead_letter.*.timeout), 0)}"
     memory_size = "${element(concat(aws_lambda_function.lambda_bare.*.memory_size, aws_lambda_function.lambda_vpc.*.memory_size, aws_lambda_function.lambda_vpc_dead_letter.*.memory_size), 0)}"
     source_code_hash = "${element(concat(aws_lambda_function.lambda_bare.*.source_code_hash, aws_lambda_function.lambda_vpc.*.source_code_hash, aws_lambda_function.lambda_vpc_dead_letter.*.source_code_hash), 0)}"
