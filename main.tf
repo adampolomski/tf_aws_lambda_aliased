@@ -70,6 +70,11 @@ variable "alias" {
   default = "RELEASE"
 }
 
+variable "tags" {
+  type = "map"
+  default = {}
+}
+
 resource "aws_iam_role" "lambda_iam_role" {
   name = "${var.function_name}"
 
@@ -139,6 +144,8 @@ resource "aws_lambda_function" "lambda_bare" {
     variables = "${var.function_variables}"
   }
 
+  tags = "${var.tags}"
+
   count = "${length(var.vpc_config) == 0 && length(var.dead_letter_target_arn) == 0 ? 1 : 0}"
 }
 
@@ -163,6 +170,8 @@ resource "aws_lambda_function" "lambda_vpc" {
   environment {
     variables = "${var.function_variables}"
   }
+
+  tags = "${var.tags}"
 
   count = "${length(var.vpc_config) > 0 && length(var.dead_letter_target_arn) == 0 ? 1 : 0}"
 }
@@ -192,6 +201,8 @@ resource "aws_lambda_function" "lambda_vpc_dead_letter" {
   environment {
     variables = "${var.function_variables}"
   }
+
+  tags = "${var.tags}"
 
   count = "${length(var.vpc_config) > 0 && length(var.dead_letter_target_arn) > 0 ? 1 : 0}"
 }
