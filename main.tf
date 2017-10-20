@@ -55,13 +55,10 @@ variable "policy" {
   default = ""
 }
 
-//variable "vpc_config" {
-//  type = "map"
-//  default = {
-//    security_group_ids = []
-//    subnet_ids = []
-//  }
-//}
+variable "vpc_config" {
+  type = "map"
+  default = {}
+}
 
 variable "alias" {
   type = "string"
@@ -120,7 +117,7 @@ resource "aws_iam_role_policy" "custom_policy" {
   count  = "${length(var.policy) > 0 ? 1 : 0}"
 }
 
-resource "aws_lambda_function" "lambda" {
+resource "aws_lambda_function" "lambda_bare" {
   s3_bucket     = "${var.s3_bucket}"
   s3_key        = "${var.s3_key}"
   function_name = "${var.function_name}"
@@ -133,44 +130,66 @@ resource "aws_lambda_function" "lambda" {
   source_code_hash = "${var.source_code_hash}"
   publish = false
 
-//  vpc_config {
-//      security_group_ids = [ "${var.vpc_config["security_group_ids"]}" ]
-//      subnet_ids = [ "${var.vpc_config["subnet_ids"]}" ]
-//  }
+  environment {
+    variables = "${var.function_variables}"
+  }
+
+  count = "${length(var.vpc_config) == 0 ? 1 : 0}"
+}
+
+resource "aws_lambda_function" "lambda_vpc" {
+  s3_bucket     = "${var.s3_bucket}"
+  s3_key        = "${var.s3_key}"
+  function_name = "${var.function_name}"
+  role          = "${aws_iam_role.lambda_iam_role.arn}"
+  handler       = "${var.handler}"
+  runtime       = "${var.runtime}"
+  memory_size   = "${var.memory_size}"
+  timeout       = "${var.timeout}"
+  description   = "${var.description}"
+  source_code_hash = "${var.source_code_hash}"
+  publish = false
+
+  vpc_config {
+    security_group_ids = [ "${var.vpc_config["security_group_ids"]}" ]
+    subnet_ids = [ "${var.vpc_config["subnet_ids"]}" ]
+  }
 
   environment {
     variables = "${var.function_variables}"
   }
+
+  count = "${length(var.vpc_config) > 0 ? 1 : 0}"
 }
 
 data "external" "alias" {
-  program = ["${path.module}/alias.sh", "${aws_lambda_function.lambda.function_name}"]
+  program = ["${path.module}/alias.sh", "${element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name), 0)}"]
 }
 
 resource "aws_lambda_alias" "lambda_alias" {
   name             = "${var.alias}"
-  function_name    = "${aws_lambda_function.lambda.arn}"
-  function_version = "${lookup(data.external.alias.result, var.alias, aws_lambda_function.lambda.version)}"
+  function_name    = "${element(concat(aws_lambda_function.lambda_bare.*.arn, aws_lambda_function.lambda_vpc.*.arn), 0)}"
+  function_version = "${lookup(data.external.alias.result, var.alias, element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name), 0))}"
 }
 
 resource "null_resource" "publisher" {
   triggers {
-    timeout = "${aws_lambda_function.lambda.timeout}"
-    memory_size = "${aws_lambda_function.lambda.memory_size}"
-    source_code_hash = "${aws_lambda_function.lambda.source_code_hash}"
+    timeout = "${element(concat(aws_lambda_function.lambda_bare.*.timeout, aws_lambda_function.lambda_vpc.*.timeout), 0)}"
+    memory_size = "${element(concat(aws_lambda_function.lambda_bare.*.memory_size, aws_lambda_function.lambda_vpc.*.memory_size), 0)}"
+    source_code_hash = "${element(concat(aws_lambda_function.lambda_bare.*.source_code_hash, aws_lambda_function.lambda_vpc.*.source_code_hash), 0)}"
   }
 
   provisioner "local-exec" {
-    command = "${path.module}/cleanup.sh ${aws_lambda_function.lambda.function_name} ; ${path.module}/publish.sh ${aws_lambda_function.lambda.function_name} ${aws_lambda_alias.lambda_alias.name}"
+    command = "${path.module}/cleanup.sh ${element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name), 0)} ; ${path.module}/publish.sh ${element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name), 0)} ${aws_lambda_alias.lambda_alias.name}"
   }
 }
 
 output "lambda_arn" {
-  value = "${aws_lambda_function.lambda.arn}"
+  value = "${element(concat(aws_lambda_function.lambda_bare.*.arn, aws_lambda_function.lambda_vpc.*.arn), 0)}"
 }
 
 output "lambda_name" {
-  value = "${aws_lambda_function.lambda.function_name}"
+  value = "${element(concat(aws_lambda_function.lambda_bare.*.function_name, aws_lambda_function.lambda_vpc.*.function_name), 0)}"
 }
 
 output "alias_arn" {
