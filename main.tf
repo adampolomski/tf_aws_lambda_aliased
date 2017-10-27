@@ -55,6 +55,10 @@ variable "policy" {
   default = ""
 }
 
+variable "has_policy" {
+  default = true
+}
+
 variable "vpc_config" {
   type = "map"
   default = {}
@@ -63,6 +67,11 @@ variable "vpc_config" {
 variable "dead_letter_target_arn" {
   type = "string"
   default = ""
+}
+
+variable "mode" {
+  type = "string"
+  default = "BARE"
 }
 
 variable "alias" {
@@ -124,7 +133,7 @@ resource "aws_iam_role_policy" "custom_policy" {
   name = "custom_policy"
   role = "${aws_iam_role.lambda_iam_role.id}"
   policy = "${var.policy}"
-  count  = "${length(var.policy) > 0 ? 1 : 0}"
+  count  = "${var.has_policy == true ? 1 : 0}"
 }
 
 resource "aws_lambda_function" "lambda_bare" {
@@ -146,7 +155,7 @@ resource "aws_lambda_function" "lambda_bare" {
 
   tags = "${var.tags}"
 
-  count = "${length(var.vpc_config) == 0 && length(var.dead_letter_target_arn) == 0 ? 1 : 0}"
+  count = "${var.mode == "BARE" ? 1 : 0}"
 }
 
 resource "aws_lambda_function" "lambda_vpc" {
@@ -173,7 +182,7 @@ resource "aws_lambda_function" "lambda_vpc" {
 
   tags = "${var.tags}"
 
-  count = "${length(var.vpc_config) > 0 && length(var.dead_letter_target_arn) == 0 ? 1 : 0}"
+  count = "${var.mode == "VPC" ? 1 : 0}"
 }
 
 resource "aws_lambda_function" "lambda_vpc_dead_letter" {
@@ -204,7 +213,7 @@ resource "aws_lambda_function" "lambda_vpc_dead_letter" {
 
   tags = "${var.tags}"
 
-  count = "${length(var.vpc_config) > 0 && length(var.dead_letter_target_arn) > 0 ? 1 : 0}"
+  count = "${var.mode == "VPC_DEAD_LETTER" ? 1 : 0}"
 }
 
 data "external" "alias" {
