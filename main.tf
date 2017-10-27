@@ -133,7 +133,7 @@ resource "aws_iam_role_policy" "custom_policy" {
   name = "custom_policy"
   role = "${aws_iam_role.lambda_iam_role.id}"
   policy = "${var.policy}"
-  count  = "${var.has_policy == true ? 1 : 0}"
+  count  = "${var.has_policy == 1 ? 1 : 0}"
 }
 
 resource "aws_lambda_function" "lambda_bare" {
